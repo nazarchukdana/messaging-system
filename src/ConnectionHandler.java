@@ -31,20 +31,15 @@ public class ConnectionHandler implements Runnable {
     public void run() {
         try{
             thread = Thread.currentThread();
-            List<String> clientsNames = Server.getClientsNames();
-            sendMessage(clientsNames.isEmpty() ? "No users connected" : "Connected users:\n"+ String.join(",\n", Server.getClientsNames()));
-            sendMessage("Enter your name:");
-            clientName = input.readLine();
-            if (clientName == null || clientName.trim().isEmpty() ) {
-                clientName = "Client";
-            }
+            showConnectedUsers();
+            setClientName();
             if(isExit(clientName)){
-                clientName = "Client";
+                setClientNameDefault();
                 return;
             }
             Server.broadcastMessage(clientName + " has connected", this);
             String message;
-            while (!thread.isInterrupted() && (message = input.readLine()) != null) {
+            while (!thread.isInterrupted() && (message = input.readLine().trim()) != null) {
                 if (isExit(message)) {
                     return;
                 }
@@ -58,8 +53,7 @@ public class ConnectionHandler implements Runnable {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            Server.removeClient(this);
-            Server.broadcastMessage(clientName + " has disconnected", this);
+            Server.disconnectClient(clientName, this);
         }
     }
     private boolean isExit(String message){
@@ -67,5 +61,19 @@ public class ConnectionHandler implements Runnable {
     }
     public Thread getThread() {
         return thread;
+    }
+    private void showConnectedUsers(){
+        List<String> clientsNames = Server.getClientsNames();
+        sendMessage(clientsNames.isEmpty() ? "No users connected" : "Connected users:\n"+ String.join(",\n", Server.getClientsNames()));
+    }
+    private void setClientName() throws IOException {
+        sendMessage("Enter your name:");
+        clientName = input.readLine();
+        if (clientName == null || clientName.trim().isEmpty() ) {
+            setClientNameDefault();
+        }
+    }
+    private void setClientNameDefault(){
+        clientName = "Client";
     }
 }

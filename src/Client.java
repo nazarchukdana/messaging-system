@@ -7,8 +7,8 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 
 public class Client {
-    private static final String HOSTNAME = "localhost";
-    private static final int SERVER_PORT = 29888;
+    private String HOSTNAME;
+    private int SERVER_PORT;
     private Socket socket;
     private BufferedReader input;
     private PrintWriter output;
@@ -16,24 +16,79 @@ public class Client {
     private JFrame frame;
     private JTextField messageField;
     private JTextArea chatArea;
+    private JButton sendButton;
+    private Font font;
+    private Color textColor;
+    private Color backgroundColor;
     private Thread receiverThread;
     public Client() {
+        setGUI();
+        setConnection();;
+    }
+    private void setConnection(){
+        if(!readServerInfo()) System.out.println("Unable to connect");
+        try {
+            socket = new Socket(HOSTNAME, SERVER_PORT);
+            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            output = new PrintWriter(socket.getOutputStream(), true);
+            if(checkConnectionOnLimit()){
+                return;
+            }
+            chatArea.append("Connected to server\n");
+            connected = true;
+            receiverThread = new Thread(new Runnable() {
+                public void run() {
+                    try {
+                        String message;
+                        while ((message = input.readLine()) != null) {
+                            chatArea.append(message + "\n");
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        chatArea.append("Disconnected from server\n");
+                    }
+                }
+            });
+            receiverThread.start();
+
+        } catch (IOException e) {
+            chatArea.append("Unable to connect to server\n");
+        }
+    }
+    private boolean readServerInfo(){
+        try (BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"))) {
+            HOSTNAME = reader.readLine();
+            String portLine = reader.readLine();
+            if (HOSTNAME == null || portLine == null) {
+                System.out.println("Invalid format.");
+                return false;
+            }
+            SERVER_PORT = Integer.parseInt(portLine.trim());
+            return true;
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    private void setGUI(){
         frame = new JFrame("Client");
-        Font font = new Font("Centaur", Font.BOLD, 18);
-        Color backgroundColor = Color.BLACK;
-        Color textColor = new Color(252,19,192);
+        font = new Font("Centaur", Font.BOLD, 18);
+        backgroundColor = Color.BLACK;
+        textColor = new Color(252,19,192);
 
         messageField = new JTextField(30);
         messageField.setFont(font);
         messageField.setForeground(textColor);
         messageField.setBackground(backgroundColor);
         messageField.setBorder(BorderFactory.createCompoundBorder(
-                new LineBorder(textColor, 2), // Magenta border of 2px width
-                new EmptyBorder(10, 10, 10, 10) // Padding inside
+                new LineBorder(textColor, 2),
+                new EmptyBorder(10, 10, 10, 10)
         ));
         messageField.setCaretColor(textColor);
 
-        JButton sendButton = new JButton("Send");
+        sendButton = new JButton("Send");
         sendButton.setFont(font);
         sendButton.setForeground(backgroundColor);
         sendButton.setBackground(textColor);
@@ -63,32 +118,9 @@ public class Client {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
         messageField.requestFocusInWindow();
-
-        try {
-            socket = new Socket(HOSTNAME, SERVER_PORT);
-            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            output = new PrintWriter(socket.getOutputStream(), true);
-            chatArea.append("Connected to server\n");
-            connected = true;
-            receiverThread = new Thread(new Runnable() {
-                public void run() {
-                    try {
-                        String message;
-                        while ((message = input.readLine()) != null) {
-                            chatArea.append(message + "\n");
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } finally {
-                        chatArea.append("Disconnected from server\n");
-                    }
-                }
-            });
-            receiverThread.start();
-
-        } catch (IOException e) {
-            chatArea.append("Unable to connect to server\n");
-        }
+        setListeners();
+    }
+    private void setListeners(){
         sendButton.addMouseListener(new MouseListener() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -109,8 +141,6 @@ public class Client {
                 sendButton.setBackground(textColor);
             }
         });
-
-        // Handle "Enter" key press
         messageField.addKeyListener(new KeyListener() {
             @Override
             public void keyTyped(KeyEvent e) {}
@@ -132,25 +162,41 @@ public class Client {
             }
         });
     }
-
+    private synchronized void sendMessage(){
+        if(connected) {
+            String message = messageField.getText().trim();
+            if (!message.isEmpty()) {
+                output.println(message);
+                displayMessage(message);
+                closeIfExit(message);
+            }
+        }
+    }
+    private void displayMessage(String message){
+        chatArea.append("You: " + message + '\n');
+        messageField.setText("");
+    }
+    private void closeIfExit(String message){
+        if(isExit(message)){
+            if (receiverThread != null) {
+                receiverThread.interrupt();
+            }
+            frame.dispose();
+            System.exit(0);
+        }
+    }
+    private boolean isExit(String message){
+        return message.equalsIgnoreCase("exit");
+    }
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Client::new);
     }
-    private synchronized void sendMessage(){
-        if(connected) {
-            String message = messageField.getText();
-            if (!message.isEmpty()) {
-                output.println(message);
-                chatArea.append("You: " + message + '\n');
-                messageField.setText("");
-                if(message.equalsIgnoreCase("exit")){
-                    if (receiverThread != null && receiverThread.isAlive()) {
-                        receiverThread.interrupt();
-                    }
-                    frame.dispose();
-                    System.exit(0);
-                }
-            }
+    private boolean checkConnectionOnLimit() throws IOException {
+        String message;
+        if((message = input.readLine()) != null && message.equals("Unable to connect, connection limit exceeded")) {
+            chatArea.append(message);
+            return true;
         }
+        return false;
     }
 }
