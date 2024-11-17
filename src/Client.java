@@ -26,7 +26,10 @@ public class Client {
         setConnection();;
     }
     private void setConnection(){
-        if(!readServerInfo()) System.out.println("Unable to connect");
+        if(!readServerInfo()) {
+            chatArea.append("Unable to connect to server\n");
+            return;
+        }
         try {
             socket = new Socket(HOSTNAME, SERVER_PORT);
             input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -39,12 +42,13 @@ public class Client {
             receiverThread = new Thread(new Runnable() {
                 public void run() {
                     try {
-                        String message;
-                        while ((message = input.readLine()) != null) {
-                            chatArea.append(message + "\n");
+                        synchronized (input) {
+                            String message;
+                            while ((message = input.readLine()) != null) {
+                                chatArea.append(message + "\n");
+                            }
                         }
                     } catch (IOException e) {
-                        e.printStackTrace();
                     } finally {
                         chatArea.append("Disconnected from server\n");
                     }
@@ -61,16 +65,14 @@ public class Client {
             HOSTNAME = reader.readLine();
             String portLine = reader.readLine();
             if (HOSTNAME == null || portLine == null) {
-                System.out.println("Invalid format.");
                 return false;
             }
             SERVER_PORT = Integer.parseInt(portLine.trim());
             return true;
         } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
         } catch (IOException e) {
-            throw new RuntimeException(e);
         }
+        return false;
     }
     private void setGUI(){
         frame = new JFrame("Client");
@@ -191,7 +193,7 @@ public class Client {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Client::new);
     }
-    private boolean checkConnectionOnLimit() throws IOException {
+    private synchronized boolean checkConnectionOnLimit() throws IOException {
         String message;
         if((message = input.readLine()) != null && message.equals("Unable to connect, connection limit exceeded")) {
             chatArea.append(message);

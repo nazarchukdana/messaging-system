@@ -6,7 +6,7 @@ import java.util.List;
 public class Server {
     private int PORT;
     private static List<ConnectionHandler> clients = new ArrayList<>();
-    private static final int MAX_CLIENTS = 2;
+    private static final int MAX_CLIENTS = 4;
     public Server(){
         if(!readServerInfo()){
             System.out.println("Unable to connect");
@@ -22,9 +22,8 @@ public class Server {
                             out.println("Unable to connect, connection limit exceeded");
                         }
                         clientSocket.close();
-                        continue; // Skip further processing for this client
+                        continue;
                     }
-
                     System.out.println("New client connected");
                     ConnectionHandler connectionHandler = new ConnectionHandler(clientSocket);
                     clients.add(connectionHandler);
@@ -32,7 +31,6 @@ public class Server {
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
         }
     }
     private boolean readServerInfo(){
@@ -77,8 +75,16 @@ public class Server {
         }
         return clientNames;
     }
-    public static synchronized void disconnectClient(String clientName, ConnectionHandler connectionHandler){
+    public static synchronized ConnectionHandler getClientByName(String name) {
+        for (ConnectionHandler client : clients) {
+            if (name.equals(client.getClientName())) {
+                return client;
+            }
+        }
+        return null;
+    }
+    public static synchronized void disconnectClient(ConnectionHandler connectionHandler){
         removeClient(connectionHandler);
-        broadcastMessage(clientName + " has disconnected", connectionHandler);
+        broadcastMessage(connectionHandler.getClientName() + " has disconnected", connectionHandler);
     }
 }
