@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,36 +11,55 @@ public class ConnectionHandler implements Runnable {
     private BufferedReader input;
     private String clientName;
     private Thread thread;
+    private List<String> banned;
 
     public ConnectionHandler(Socket socket) {
+        banned = new ArrayList<>();
+        if(!readBannedPhrases()) return;
         this.socket = socket;
         try {
             output = new PrintWriter(socket.getOutputStream(), true);
             input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Exception while init output and input");
         }
-    }
 
-    public synchronized void sendMessage(String message) {
-       output.println(message);
     }
-    public String getClientName(){return clientName;}
-
+    private boolean readBannedPhrases(){
+        try (BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"))) {
+            reader.readLine();
+            reader.readLine();
+            String line;
+            while ((line = reader.readLine()) != null && !line.trim().isEmpty()){
+                banned.add(line);
+            }
+            reader.close();
+            return true;
+        } catch (FileNotFoundException e) {
+            System.err.println("File with server info not found");
+        } catch (IOException e) {
+            System.err.println("Exception while reading the file");
+        }
+        return false;
+    }
     @Override
     public void run() {
         try{
             thread = Thread.currentThread();
+            sendMessage("Connected to server");
             showConnectedUsers();
             setClientName();
             if(exitBeforeName(clientName)) return;
             Server.broadcastMessage(clientName + " has connected", this);
             String message;
-            while (!thread.isInterrupted() && (message = input.readLine().trim()) != null) {
+            while ((message = input.readLine()) != null) {
                 if (isExit(message)) {
                     return;
                 }
-                if (message.matches(".*-msg\\s*\"[^\"]+\"(\\s*\"[^\"]+\")*$")) {
+                if(containsBannedPhrase(message)){
+                    sendMessage("You can't send this message. It contains prohibited content.");
+                }
+                else if (message.matches(".*-msg\\s*\"[^\"]+\"(\\s*\"[^\"]+\")*$")) {
                     handlePrivateMessage(message);
                 }
                 else if (message.matches(".*-e\\s*\"[^\"]+\"(\\s*\"[^\"]+\")*$")) {
@@ -52,14 +68,56 @@ public class ConnectionHandler implements Runnable {
                 else Server.broadcastMessage(clientName+": "+message, this);
             }
         } catch (IOException e) {
-
-        } finally {
+            System.err.println("Exception while sending messages");
+        }finally {
+            thread.interrupt();
             try {
                 socket.close();
+                input.close();
+                output.close();
             } catch (IOException e) {
+                System.err.println("Exception with closing");
             }
             Server.disconnectClient(this);
         }
+    }
+
+    public void sendMessage(String message) {
+       output.println(message);
+    }
+    private synchronized void showConnectedUsers(){
+        List<String> clientsNames = Server.getClientsNames();
+        String message = clientsNames.isEmpty() ? "No users connected" : "Connected users:\n"+ String.join(",\n", clientsNames);
+        sendMessage(message);
+    }
+    private synchronized void setClientName(){
+        sendMessage("Enter your name:");
+        try {
+            clientName = input.readLine();
+        } catch (IOException e) {
+            System.err.println("Exception while reading name");
+        }
+    }
+    private void setClientNameDefault(){
+        clientName = "Client";
+    }
+    private boolean exitBeforeName(String message){
+        if(isExit(message)) {
+            setClientNameDefault();
+            return true;
+        }
+        return false;
+    }
+    private boolean isExit(String message){
+        return message.equalsIgnoreCase("exit");
+    }
+    private boolean containsBannedPhrase(String message) {
+        for (String bannedPhrase : banned) {
+            if (message.toLowerCase().contains(bannedPhrase.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
     private void handlePrivateMessage(String message) {
         String actualMessage = message.replaceAll("-msg\\s*\"[^\"]+\"(\\s*\"[^\"]+\")*$", "").trim();
@@ -96,32 +154,7 @@ public class ConnectionHandler implements Runnable {
             sendMessage("User \"" + targetClientName + "\" not found.");
         }
     }
-    private boolean exitBeforeName(String message){
-        if(isExit(message)) {
-            setClientNameDefault();
-            return true;
-        }
-        return false;
-    }
-    private boolean isExit(String message){
-        return message.equalsIgnoreCase("exit");
-    }
-    public Thread getThread() {
-        return thread;
-    }
-    private synchronized void showConnectedUsers(){
-        List<String> clientsNames = Server.getClientsNames();
-        String message = clientsNames.isEmpty() ? "No users connected" : "Connected users:\n"+ String.join(",\n", clientsNames);
-        sendMessage(message);
-    }
-    private void setClientName() throws IOException {
-        sendMessage("Enter your name:");
-        clientName = input.readLine();
-        if (clientName == null || clientName.trim().isEmpty() ) {
-            setClientNameDefault();
-        }
-    }
-    private void setClientNameDefault(){
-        clientName = "Client";
-    }
+
+
+    public String getClientName(){return clientName;}
 }

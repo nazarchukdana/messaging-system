@@ -12,7 +12,7 @@ public class Client {
     private Socket socket;
     private BufferedReader input;
     private PrintWriter output;
-    private boolean connected = false;
+    private boolean connected;
     private JFrame frame;
     private JTextField messageField;
     private JTextArea chatArea;
@@ -23,30 +23,27 @@ public class Client {
     private Thread receiverThread;
     public Client() {
         setGUI();
-        setConnection();;
+        setConnection();
     }
     private void setConnection(){
+        connected = false;
         if(!readServerInfo()) {
-            chatArea.append("Unable to connect to server\n");
+            chatArea.append("Unable to connect to server(cannot read file)\n");
             return;
         }
         try {
             socket = new Socket(HOSTNAME, SERVER_PORT);
             input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             output = new PrintWriter(socket.getOutputStream(), true);
-            if(checkConnectionOnLimit()){
-                return;
-            }
-            chatArea.append("Connected to server\n");
+            if(outOfLimit()) return;
             connected = true;
             receiverThread = new Thread(new Runnable() {
                 public void run() {
                     try {
-                        synchronized (input) {
-                            String message;
-                            while ((message = input.readLine()) != null) {
-                                chatArea.append(message + "\n");
-                            }
+                        String message;
+                        while ((message = input.readLine()) != null) {
+                            System.out.println(message);
+                            chatArea.append(message + "\n");
                         }
                     } catch (IOException e) {
                     } finally {
@@ -68,10 +65,25 @@ public class Client {
                 return false;
             }
             SERVER_PORT = Integer.parseInt(portLine.trim());
+            System.out.println(HOSTNAME);
+            System.out.println(SERVER_PORT);
+            reader.close();
             return true;
         } catch (FileNotFoundException e) {
+            System.err.println("File with server info not found");
         } catch (IOException e) {
+            System.err.println("Exception while reading the file");
         }
+        return false;
+    }
+    private boolean outOfLimit(){
+        try {
+            String message = input.readLine();
+            chatArea.append(message + "\n");
+            if (message.equals("Unable to connect, connection limit exceeded")) {
+                return true;
+            }
+        } catch (IOException e) {}
         return false;
     }
     private void setGUI(){
@@ -157,14 +169,12 @@ public class Client {
             public void windowClosing(WindowEvent e) {
                 if(connected) {
                     output.println("exit");
-                    if (receiverThread != null) {
-                        receiverThread.interrupt();
-                    }
+                    closeStreamsAndStopThread();
                 }
             }
         });
     }
-    private synchronized void sendMessage(){
+    private void sendMessage(){
         if(connected) {
             String message = messageField.getText().trim();
             if (!message.isEmpty()) {
@@ -180,9 +190,7 @@ public class Client {
     }
     private void closeIfExit(String message){
         if(isExit(message)){
-            if (receiverThread != null) {
-                receiverThread.interrupt();
-            }
+            closeStreamsAndStopThread();
             frame.dispose();
             System.exit(0);
         }
@@ -190,15 +198,18 @@ public class Client {
     private boolean isExit(String message){
         return message.equalsIgnoreCase("exit");
     }
+    private void closeStreamsAndStopThread(){
+        receiverThread.interrupt();
+        try {
+            input.close();
+            output.close();
+            socket.close();
+        } catch (IOException ex) {
+            System.err.println("Exception with closing");
+        }
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(Client::new);
-    }
-    private synchronized boolean checkConnectionOnLimit() throws IOException {
-        String message;
-        if((message = input.readLine()) != null && message.equals("Unable to connect, connection limit exceeded")) {
-            chatArea.append(message);
-            return true;
-        }
-        return false;
     }
 }

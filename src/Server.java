@@ -6,20 +6,25 @@ import java.util.List;
 public class Server {
     private int PORT;
     private static List<ConnectionHandler> clients = new ArrayList<>();
-    private static final int MAX_CLIENTS = 4;
+    private final int MAX_CLIENTS = 4;
     public Server(){
         if(!readServerInfo()){
-            System.out.println("Unable to connect");
+            System.out.println("Cannot read file");
             return;
         }
         System.out.println("Server is listening on port " + PORT);
-        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+        try {
+            ServerSocket serverSocket = new ServerSocket(PORT);
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 synchronized (clients) {
                     if (clients.size() >= MAX_CLIENTS) {
-                        try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
-                            out.println("Unable to connect, connection limit exceeded");
+                        try{
+                            PrintWriter output = new PrintWriter(clientSocket.getOutputStream(), true);
+                            output.println("Unable to connect, connection limit exceeded");
+                            output.close();
+                        } catch (IOException e) {
+                            System.err.println("Exception while sending message");
                         }
                         clientSocket.close();
                         continue;
@@ -31,10 +36,12 @@ public class Server {
                 }
             }
         } catch (IOException e) {
+            System.err.println("Exception while setting socket");
         }
     }
     private boolean readServerInfo(){
-        try (BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"))) {
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"));
             String serverName = reader.readLine();
             String portLine = reader.readLine();
             if (serverName == null || portLine == null) {
@@ -42,30 +49,14 @@ public class Server {
                 return false;
             }
             PORT = Integer.parseInt(portLine.trim());
+            reader.close();
             return true;
         } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+            System.err.println("File with server info not found");
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            System.err.println("Exception while reading the file with server info");
         }
-    }
-
-    public static void main(String[] args) {
-        Server server = new Server();
-    }
-    public static synchronized void broadcastMessage(String message, ConnectionHandler sender) {
-        for (ConnectionHandler client : clients) {
-            if (client != sender) {
-                client.sendMessage(message);
-            }
-        }
-    }
-    public static synchronized void removeClient(ConnectionHandler connectionHandler){
-        clients.remove(connectionHandler);
-        Thread clientThread = connectionHandler.getThread();
-        if (clientThread != null) {
-            clientThread.interrupt();
-        }
+        return false;
     }
     public static synchronized List<String> getClientsNames() {
         List<String> clientNames = new ArrayList<>();
@@ -83,8 +74,23 @@ public class Server {
         }
         return null;
     }
-    public static synchronized void disconnectClient(ConnectionHandler connectionHandler){
+    public static void disconnectClient(ConnectionHandler connectionHandler){
         removeClient(connectionHandler);
         broadcastMessage(connectionHandler.getClientName() + " has disconnected", connectionHandler);
     }
+    public static synchronized void broadcastMessage(String message, ConnectionHandler sender) {
+        for (ConnectionHandler client : clients) {
+            if (client != sender) {
+                client.sendMessage(message);
+            }
+        }
+    }
+    public static synchronized void removeClient(ConnectionHandler connectionHandler){
+        clients.remove(connectionHandler);
+    }
+
+    public static void main(String[] args) {
+        Server server = new Server();
+    }
+
 }
