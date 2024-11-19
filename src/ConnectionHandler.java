@@ -13,9 +13,8 @@ public class ConnectionHandler implements Runnable {
     private Thread thread;
     private List<String> banned;
 
-    public ConnectionHandler(Socket socket) {
-        banned = new ArrayList<>();
-        if(!readBannedPhrases()) return;
+    public ConnectionHandler(Socket socket, List<String> banned) {
+        this.banned = banned;
         this.socket = socket;
         try {
             output = new PrintWriter(socket.getOutputStream(), true);
@@ -24,23 +23,6 @@ public class ConnectionHandler implements Runnable {
             System.err.println("Exception while init output and input");
         }
 
-    }
-    private boolean readBannedPhrases(){
-        try (BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"))) {
-            reader.readLine();
-            reader.readLine();
-            String line;
-            while ((line = reader.readLine()) != null && !line.trim().isEmpty()){
-                banned.add(line);
-            }
-            reader.close();
-            return true;
-        } catch (FileNotFoundException e) {
-            System.err.println("File with server info not found");
-        } catch (IOException e) {
-            System.err.println("Exception while reading the file");
-        }
-        return false;
     }
     @Override
     public void run() {
@@ -64,6 +46,9 @@ public class ConnectionHandler implements Runnable {
                 }
                 else if (message.matches(".*-e\\s*\"[^\"]+\"(\\s*\"[^\"]+\")*$")) {
                     handleExclusionMessage(message);
+                }
+                else if (message.matches("^\\s*-banned\\s*$")){
+                    showBannedPhrases();
                 }
                 else Server.broadcastMessage(clientName+": "+message, this);
             }
@@ -153,6 +138,9 @@ public class ConnectionHandler implements Runnable {
         } else{
             sendMessage("User \"" + targetClientName + "\" not found.");
         }
+    }
+    private void showBannedPhrases(){
+        sendMessage("Banned phrases:\n"+String.join(",\n", banned));
     }
 
 

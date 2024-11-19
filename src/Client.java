@@ -7,7 +7,6 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 
 public class Client {
-    private String HOSTNAME;
     private int SERVER_PORT;
     private Socket socket;
     private BufferedReader input;
@@ -32,10 +31,10 @@ public class Client {
             return;
         }
         try {
-            socket = new Socket(HOSTNAME, SERVER_PORT);
+            socket = new Socket("localhost", SERVER_PORT);
             input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             output = new PrintWriter(socket.getOutputStream(), true);
-            if(outOfLimit()) return;
+            chatArea.append(input.readLine() + "\n");
             connected = true;
             receiverThread = new Thread(new Runnable() {
                 public void run() {
@@ -59,14 +58,12 @@ public class Client {
     }
     private boolean readServerInfo(){
         try (BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"))) {
-            HOSTNAME = reader.readLine();
+            reader.readLine();
             String portLine = reader.readLine();
-            if (HOSTNAME == null || portLine == null) {
+            if (portLine == null) {
                 return false;
             }
             SERVER_PORT = Integer.parseInt(portLine.trim());
-            System.out.println(HOSTNAME);
-            System.out.println(SERVER_PORT);
             reader.close();
             return true;
         } catch (FileNotFoundException e) {
@@ -74,16 +71,6 @@ public class Client {
         } catch (IOException e) {
             System.err.println("Exception while reading the file");
         }
-        return false;
-    }
-    private boolean outOfLimit(){
-        try {
-            String message = input.readLine();
-            chatArea.append(message + "\n");
-            if (message.equals("Unable to connect, connection limit exceeded")) {
-                return true;
-            }
-        } catch (IOException e) {}
         return false;
     }
     private void setGUI(){

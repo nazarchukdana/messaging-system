@@ -5,9 +5,11 @@ import java.util.List;
 
 public class Server {
     private int PORT;
-    private static List<ConnectionHandler> clients = new ArrayList<>();
-    private final int MAX_CLIENTS = 4;
+    private static List<ConnectionHandler> clients;
+    private List<String> banned;
     public Server(){
+        clients = new ArrayList<>();
+        banned = new ArrayList<>();
         if(!readServerInfo()){
             System.out.println("Cannot read file");
             return;
@@ -18,19 +20,8 @@ public class Server {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 synchronized (clients) {
-                    if (clients.size() >= MAX_CLIENTS) {
-                        try{
-                            PrintWriter output = new PrintWriter(clientSocket.getOutputStream(), true);
-                            output.println("Unable to connect, connection limit exceeded");
-                            output.close();
-                        } catch (IOException e) {
-                            System.err.println("Exception while sending message");
-                        }
-                        clientSocket.close();
-                        continue;
-                    }
                     System.out.println("New client connected");
-                    ConnectionHandler connectionHandler = new ConnectionHandler(clientSocket);
+                    ConnectionHandler connectionHandler = new ConnectionHandler(clientSocket, banned);
                     clients.add(connectionHandler);
                     new Thread(connectionHandler).start();
                 }
@@ -42,13 +33,21 @@ public class Server {
     private boolean readServerInfo(){
         try {
             BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"));
-            String serverName = reader.readLine();
+            reader.readLine();
             String portLine = reader.readLine();
-            if (serverName == null || portLine == null) {
+            if (portLine == null) {
                 System.out.println("Invalid format.");
                 return false;
             }
             PORT = Integer.parseInt(portLine.trim());
+            String line;
+            while ((line = reader.readLine()) != null && !line.trim().isEmpty()){
+                banned.add(line);
+            }
+            if(banned.isEmpty()) {
+                System.out.println("Invalid format.");
+                return false;
+            }
             reader.close();
             return true;
         } catch (FileNotFoundException e) {
