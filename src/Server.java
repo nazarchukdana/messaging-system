@@ -10,9 +10,7 @@ public class Server {
     public Server(){
         clients = new ArrayList<>();
         banned = new ArrayList<>();
-        if(!readServerInfo()){
-            return;
-        }
+        readServerInfo();
         System.out.println("Server is listening on port " + PORT);
         try {
             ServerSocket serverSocket = new ServerSocket(PORT);
@@ -29,14 +27,14 @@ public class Server {
             System.err.println("Exception while setting socket");
         }
     }
-    private boolean readServerInfo(){
+    private void readServerInfo(){
         try {
             BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"));
             reader.readLine();
             String portLine = reader.readLine();
             if (portLine == null) {
                 System.err.println("Invalid format.");
-                return false;
+                System.exit(1);
             }
             PORT = Integer.parseInt(portLine.trim());
             String line;
@@ -45,16 +43,17 @@ public class Server {
             }
             if(banned.isEmpty()) {
                 System.err.println("Invalid format.");
-                return false;
+                System.exit(1);
             }
             reader.close();
-            return true;
+
         } catch (FileNotFoundException e) {
             System.err.println("File with server info not found");
+            System.exit(1);
         } catch (IOException e) {
             System.err.println("Exception while reading the file with server info");
+            System.exit(1);
         }
-        return false;
     }
     public static synchronized List<String> getClientsNames() {
         List<String> clientNames = new ArrayList<>();
