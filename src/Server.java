@@ -11,7 +11,6 @@ public class Server {
         clients = new ArrayList<>();
         banned = new ArrayList<>();
         if(!readServerInfo()){
-            System.out.println("Cannot read file");
             return;
         }
         System.out.println("Server is listening on port " + PORT);
@@ -36,7 +35,7 @@ public class Server {
             reader.readLine();
             String portLine = reader.readLine();
             if (portLine == null) {
-                System.out.println("Invalid format.");
+                System.err.println("Invalid format.");
                 return false;
             }
             PORT = Integer.parseInt(portLine.trim());
@@ -45,7 +44,7 @@ public class Server {
                 banned.add(line);
             }
             if(banned.isEmpty()) {
-                System.out.println("Invalid format.");
+                System.err.println("Invalid format.");
                 return false;
             }
             reader.close();
@@ -73,10 +72,6 @@ public class Server {
         }
         return null;
     }
-    public static void disconnectClient(ConnectionHandler connectionHandler){
-        removeClient(connectionHandler);
-        broadcastMessage(connectionHandler.getClientName() + " has disconnected", connectionHandler);
-    }
     public static synchronized void broadcastMessage(String message, ConnectionHandler sender) {
         for (ConnectionHandler client : clients) {
             if (client != sender) {
@@ -84,6 +79,11 @@ public class Server {
             }
         }
     }
+    public static void disconnectClient(ConnectionHandler connectionHandler){
+        removeClient(connectionHandler);
+        broadcastMessage(connectionHandler.getClientName() + " has disconnected", connectionHandler);
+    }
+
     public static synchronized void removeClient(ConnectionHandler connectionHandler){
         clients.remove(connectionHandler);
     }

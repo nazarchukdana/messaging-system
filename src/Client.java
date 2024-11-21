@@ -16,7 +16,6 @@ public class Client {
     private JTextField messageField;
     private JTextArea chatArea;
     private JButton sendButton;
-    private Font font;
     private Color textColor;
     private Color backgroundColor;
     private Thread receiverThread;
@@ -24,58 +23,9 @@ public class Client {
         setGUI();
         setConnection();
     }
-    private void setConnection(){
-        connected = false;
-        if(!readServerInfo()) {
-            chatArea.append("Unable to connect to server(cannot read file)\n");
-            return;
-        }
-        try {
-            socket = new Socket("localhost", SERVER_PORT);
-            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            output = new PrintWriter(socket.getOutputStream(), true);
-            chatArea.append(input.readLine() + "\n");
-            connected = true;
-            receiverThread = new Thread(new Runnable() {
-                public void run() {
-                    try {
-                        String message;
-                        while ((message = input.readLine()) != null) {
-                            System.out.println(message);
-                            chatArea.append(message + "\n");
-                        }
-                    } catch (IOException e) {
-                    } finally {
-                        chatArea.append("Disconnected from server\n");
-                    }
-                }
-            });
-            receiverThread.start();
-
-        } catch (IOException e) {
-            chatArea.append("Unable to connect to server\n");
-        }
-    }
-    private boolean readServerInfo(){
-        try (BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"))) {
-            reader.readLine();
-            String portLine = reader.readLine();
-            if (portLine == null) {
-                return false;
-            }
-            SERVER_PORT = Integer.parseInt(portLine.trim());
-            reader.close();
-            return true;
-        } catch (FileNotFoundException e) {
-            System.err.println("File with server info not found");
-        } catch (IOException e) {
-            System.err.println("Exception while reading the file");
-        }
-        return false;
-    }
     private void setGUI(){
         frame = new JFrame("Client");
-        font = new Font("Centaur", Font.BOLD, 18);
+        Font font = new Font("Centaur", Font.BOLD, 18);
         backgroundColor = Color.BLACK;
         textColor = new Color(252,19,192);
 
@@ -121,6 +71,58 @@ public class Client {
         messageField.requestFocusInWindow();
         setListeners();
     }
+    private void setConnection(){
+        connected = false;
+        if(!readServerInfo()) {
+            chatArea.append("Unable to connect to server(cannot read file)\n");
+            return;
+        }
+        try {
+            socket = new Socket("localhost", SERVER_PORT);
+            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            output = new PrintWriter(socket.getOutputStream(), true);
+            chatArea.append(input.readLine() + "\n");
+            connected = true;
+            receiverThread = new Thread(new Runnable() {
+                public void run() {
+                    try {
+                        String message;
+                        while ((message = input.readLine()) != null) {
+                            System.out.println(message);
+                            chatArea.append(message + "\n");
+                        }
+                    } catch (IOException e) {
+                    } finally {
+                        closeStreamsAndStopThread();
+                        connected = false;
+                        chatArea.append("Disconnected from server\n");
+                    }
+                }
+            });
+            receiverThread.start();
+
+        } catch (IOException e) {
+            chatArea.append("Unable to connect to server\n");
+        }
+    }
+    private boolean readServerInfo(){
+        try (BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"))) {
+            reader.readLine();
+            String portLine = reader.readLine();
+            if (portLine == null) {
+                return false;
+            }
+            SERVER_PORT = Integer.parseInt(portLine.trim());
+            reader.close();
+            return true;
+        } catch (FileNotFoundException e) {
+            System.err.println("File with server info not found");
+        } catch (IOException e) {
+            System.err.println("Exception while reading the file");
+        }
+        return false;
+    }
+
     private void setListeners(){
         sendButton.addMouseListener(new MouseListener() {
             @Override
@@ -155,6 +157,7 @@ public class Client {
         frame.addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
                 if(connected) {
+                    connected = false;
                     output.println("exit");
                     closeStreamsAndStopThread();
                 }
