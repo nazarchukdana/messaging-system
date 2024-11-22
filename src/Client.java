@@ -88,7 +88,6 @@ public class Client {
                     try {
                         String message;
                         while ((message = input.readLine()) != null) {
-                            System.out.println(message);
                             chatArea.append(message + "\n");
                         }
                     } catch (IOException e) {

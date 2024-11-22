@@ -30,6 +30,7 @@ public class ConnectionHandler implements Runnable {
             thread = Thread.currentThread();
             sendMessage("Connected to server");
             showConnectedUsers();
+            showInstructions();
             setClientName();
             if(exitBeforeName(clientName)) return;
             Server.broadcastMessage(clientName + " has connected", this);
@@ -73,6 +74,15 @@ public class ConnectionHandler implements Runnable {
     private synchronized void showConnectedUsers(){
         List<String> clientsNames = Server.getClientsNames();
         String message = clientsNames.isEmpty() ? "No users connected" : "Connected users:\n"+ String.join(",\n", clientsNames);
+        sendMessage(message);
+    }
+    private void showInstructions(){
+        String message = "Instructions:\n" +
+                "For sending to everyone enter: \nmessage\n"+
+                "For sending to a specific user enter: \nmessage -msg \"username\"\n"+
+                "For sending to multiple specific users enter: \nmessage -msg\"username\" \"username\" ...\n"+
+                "For sending to all users with exception to some users enter: \nmessage -e \"username\" \"username\"...\n"+
+                "For listing banned phrases enter:\n -banned";
         sendMessage(message);
     }
     private synchronized void setClientName(){
