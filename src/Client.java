@@ -64,7 +64,7 @@ public class Client {
         JScrollPane scrollPane = new JScrollPane(chatArea);
         scrollPane.setBorder(null);
         frame.add(scrollPane, BorderLayout.CENTER);
-        frame.setSize(600, 400);
+        frame.setSize(600, 600);
         frame.setLocationRelativeTo(null);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
@@ -105,13 +105,15 @@ public class Client {
         }
     }
     private boolean readServerInfo(){
-        try (BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"))) {
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"));
             reader.readLine();
-            String portLine = reader.readLine();
+            String portLine = reader.readLine().trim();
             if (portLine == null) {
+                reader.close();
                 return false;
             }
-            SERVER_PORT = Integer.parseInt(portLine.trim());
+            SERVER_PORT = Integer.parseInt(portLine);
             reader.close();
             return true;
         } catch (FileNotFoundException e) {

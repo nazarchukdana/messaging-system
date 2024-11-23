@@ -93,15 +93,15 @@ public class ConnectionHandler implements Runnable {
             System.err.println("Exception while reading name");
         }
     }
-    private void setClientNameDefault(){
-        clientName = "Client";
-    }
     private boolean exitBeforeName(String message){
         if(isExit(message)) {
             setClientNameDefault();
             return true;
         }
         return false;
+    }
+    private void setClientNameDefault(){
+        clientName = "Client";
     }
     private boolean isExit(String message){
         return message.equalsIgnoreCase("exit");
@@ -152,7 +152,6 @@ public class ConnectionHandler implements Runnable {
     private void showBannedPhrases(){
         sendMessage("Banned phrases:\n"+String.join(",\n", banned));
     }
-
 
     public String getClientName(){return clientName;}
 }

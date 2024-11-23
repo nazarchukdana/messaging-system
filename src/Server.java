@@ -6,14 +6,14 @@ import java.util.List;
 public class Server {
     private int PORT;
     private static List<ConnectionHandler> clients;
-    private List<String> banned;
+    private final List<String> banned;
     public Server(){
         clients = new ArrayList<>();
         banned = new ArrayList<>();
         readServerInfo();
-        System.out.println("Server is listening on port " + PORT);
         try {
             ServerSocket serverSocket = new ServerSocket(PORT);
+            System.out.println("Server is listening on port " + PORT);
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 synchronized (clients) {
@@ -25,20 +25,21 @@ public class Server {
             }
         } catch (IOException e) {
             System.err.println("Exception while setting socket");
+            System.exit(1);
         }
     }
     private void readServerInfo(){
         try {
             BufferedReader reader = new BufferedReader(new FileReader("./src/server_info.txt"));
             reader.readLine();
-            String portLine = reader.readLine();
+            String portLine = reader.readLine().trim();
             if (portLine == null) {
                 System.err.println("Invalid format.");
                 System.exit(1);
             }
-            PORT = Integer.parseInt(portLine.trim());
+            PORT = Integer.parseInt(portLine);
             String line;
-            while ((line = reader.readLine()) != null && !line.trim().isEmpty()){
+            while ((line = reader.readLine().trim()) != null && !line.isEmpty()){
                 banned.add(line);
             }
             if(banned.isEmpty()) {
@@ -78,13 +79,13 @@ public class Server {
             }
         }
     }
-    public static void disconnectClient(ConnectionHandler connectionHandler){
-        removeClient(connectionHandler);
-        broadcastMessage(connectionHandler.getClientName() + " has disconnected", connectionHandler);
+    public static void disconnectClient(ConnectionHandler client){
+        removeClient(client);
+        broadcastMessage(client.getClientName() + " has disconnected", client);
     }
 
-    public static synchronized void removeClient(ConnectionHandler connectionHandler){
-        clients.remove(connectionHandler);
+    public static synchronized void removeClient(ConnectionHandler client){
+        clients.remove(client);
     }
 
     public static void main(String[] args) {
