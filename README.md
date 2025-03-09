@@ -35,8 +35,8 @@ This project consists of **two applications**:
 ## Configuration File
 The **server configuration file** should include:
 ```
-12345
 ChatServer
+12345
 spam
 offensive_word
 ```
