@@ -1,7 +1,7 @@
 # Client-Server Messaging System
 
 ## Project Goal
-The project emphasizes **input-output (I/O) streams**, including **socket communication** .
+The Client-Server Messaging System is designed to facilitate real-time communication between multiple users through a server-managed infrastructure. This project emphasizes input-output (I/O) streams, focusing on socket-based communication to ensure seamless message delivery and efficient client-server interactions. Additionally, the system enforces message filtering to maintain a clean communication environment.
 
 ## Project Overview
 This project consists of **two applications**:
